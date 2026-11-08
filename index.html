@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Diagnostik-Dashboard</title>
+  <meta name="description" content="Auswertung der Lernstandsdiagnostik je Klasse und Stufe">
+  <meta name="theme-color" content="#2a78d6">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><rect x="7" y="17" width="4" height="8" rx="1.5" fill="#fff"/><rect x="14" y="11" width="4" height="14" rx="1.5" fill="#fff"/><rect x="21" y="7" width="4" height="18" rx="1.5" fill="#fff"/></svg>
+        <h1>Diagnostik-Dashboard</h1>
+      </div>
+      <span class="badge" id="mode">…</span>
+      <div class="spacer"></div>
+      <span class="muted small" id="user"></span>
+      <button class="btn small hidden" id="logout">Abmelden</button>
+    </div>
+    <nav class="tabs" role="tablist" id="app-tabs">
+      <button class="tab" data-view="overview" role="tab">Überblick</button>
+      <button class="tab" data-view="klasse" role="tab">Klasse</button>
+      <button class="tab" data-view="stufe" role="tab">Stufenvergleich</button>
+      <button class="tab" data-view="jahrgang" role="tab">Jahrgang</button>
+      <button class="tab" data-view="foerder" role="tab">Förderliste</button>
+      <button class="tab" data-view="import" role="tab">Import</button>
+      <button class="tab" data-view="admin" role="tab">Verwaltung</button>
+    </nav>
+  </header>
+
+  <section id="login" class="login hidden">
+    <div class="card">
+      <h2>Anmelden</h2>
+      <p class="small muted">Sie erhalten einen Anmeldelink per E-Mail. Zugang nur für freigeschaltete Konten der Schule.</p>
+      <form id="login-form" class="row">
+        <input type="email" id="login-mail" required placeholder="name@schule.de" style="flex:1;min-width:200px">
+        <button class="btn primary">Link senden</button>
+      </form>
+      <p id="login-msg" class="small"></p>
+    </div>
+  </section>
+
+  <main id="app" class="hidden">
+    <div class="filters" style="margin-bottom:16px">
+      <div class="field"><label for="f-schuljahr">Schuljahr</label><select id="f-schuljahr"></select></div>
+      <div class="field"><label for="f-fach">Fach</label><select id="f-fach"></select></div>
+    </div>
+    <div id="toast" class="msg" style="display:none;margin-bottom:16px"></div>
+    <section class="view" id="view-overview"></section>
+    <section class="view" id="view-klasse"></section>
+    <section class="view" id="view-stufe"></section>
+    <section class="view" id="view-jahrgang"></section>
+    <section class="view" id="view-foerder"></section>
+    <section class="view" id="view-import"></section>
+    <section class="view" id="view-admin"></section>
+  </main>
+  <div id="tooltip" role="tooltip"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/demo-data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
+</body>
+</html>
