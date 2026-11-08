@@ -10,6 +10,7 @@ Web-App für die Schulleitung: Klett-Diagnostik-Klassenauswertungen (PDF) einles
 | Klasse | Klassenprofil über alle Bereiche, Verteilung je Bereich, Einzelergebnisse je Kennung (T-Wert, PR, Rohwert, Kompetenzstufe), CSV-Export |
 | Stufenvergleich | Parallelklassen einer Stufe im selben Test: Median mit mittleren 50 %, Verteilung, Matrix über alle Bereiche |
 | Jahrgang | Verlauf eines Einschulungsjahrgangs über mehrere Testzeitpunkte (z. B. 1d 2024/25 → 3d 2026/27) |
+| Jahrgangsspiegel | Kennzahlen je Klasse für Lesen, Rechtschreibung und Mathematik mit Ampel, Klassenleitung und vereinbarten Maßnahmen; schulweite Übersicht; Export als Excel im Aufbau des schulinternen Jahrgangsspiegels |
 | Förderliste | Alle Kinder mit mindestens einem Bereich unter T 40, Suche nach Kennung, CSV-Export |
 | Import | PDF-Auswertungen per Drag & Drop, Metadaten vor dem Speichern prüfen; CSV-Vorlage für andere Verfahren |
 | Verwaltung | Rollen (Schulleitung/Lehrkraft) und Klassen-Zuordnungen, Tests löschen |
@@ -33,6 +34,10 @@ Unterstützte PDF-Formate: **HSP** (Hamburger Schreib-Probe, alle Skalen wie W, 
 1. Auf GitHub ein neues Repository anlegen (z. B. `diagnostik-dashboard`, gern **privat** – Pages funktioniert bei privaten Repos ab GitHub Pro/Team; sonst öffentlich, die Daten liegen ohnehin nicht im Repo).
 2. Alle Dateien dieses Ordners hochladen (**Add file → Upload files**).
 3. **Settings → Pages → Source: Deploy from a branch**, Branch `main`, Ordner `/ (root)`, speichern. Nach 1–2 Minuten ist die App unter der angezeigten Adresse erreichbar.
+
+### Ergänzung Jahrgangsspiegel
+
+Für eine bereits eingerichtete Datenbank einmalig `supabase/update-jahrgangsspiegel.sql` im SQL Editor ausführen (in `schema.sql` ist die Tabelle für Neuinstallationen schon enthalten). Klassenleitung und Maßnahmen dürfen Lehrkräfte für ihre Klassen eintragen, den Schwerpunkt des Jahrgangs nur die Schulleitung.
 
 ### 3. Konten anlegen
 

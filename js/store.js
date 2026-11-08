@@ -51,6 +51,14 @@
       });
       if (error) throw error;
     },
+    async loginPasswort(email, password) {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    },
+    async passwortAendern(password) {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) throw error;
+    },
     async logout() { if (online) await sb.auth.signOut(); },
 
     /** Alle sichtbaren Tests inkl. Ergebnisse */
@@ -128,6 +136,26 @@
       if (error) throw error;
     },
 
+    /* ---------- Jahrgangsspiegel-Notizen ---------- */
+    async notizen() {
+      if (!online) return JSON.parse(JSON.stringify(mem.notizen || []));
+      const { data, error } = await sb.from('spiegel_notiz').select('*');
+      if (error) { if (/spiegel_notiz/.test(error.message)) return []; throw error; }
+      return data;
+    },
+    async speichereNotiz(n) {
+      const key = (x) => [x.schuljahr, x.halbjahr, x.stufe, x.klasse || ''].join('|');
+      const row = { schuljahr: n.schuljahr, halbjahr: n.halbjahr, stufe: n.stufe, klasse: n.klasse || '',
+        klassenleitung: n.klassenleitung ?? null, text: n.text ?? null };
+      if (!online) {
+        mem.notizen = (mem.notizen || []).filter(x => key(x) !== key(row));
+        mem.notizen.push(row); lsSave(); return;
+      }
+      const { error } = await sb.from('spiegel_notiz').upsert(Object.assign(row, { geaendert_am: new Date().toISOString() }),
+        { onConflict: 'schuljahr,halbjahr,stufe,klasse' });
+      if (error) throw error;
+    },
+
     /* ---------- lokal: Sicherung ---------- */
     exportJson() { return JSON.stringify(mem, null, 1); },
     importJson(text) {
@@ -135,7 +163,7 @@
       if (!d || !Array.isArray(d.tests)) throw new Error('Keine gültige Sicherungsdatei.');
       mem = d; lsSave();
     },
-    alleLokalLoeschen() { mem = { tests: [], nextId: 1 }; lsSave(); }
+    alleLokalLoeschen() { mem = { tests: [], nextId: 1, notizen: [] }; lsSave(); }
   };
 
   root.Store = Store;
