@@ -117,7 +117,7 @@
     let v = wert === 'pr' ? e.pr : wert === 'rw' ? e.rw : wert === 'ks' ? e.ks : tWert(e);
     const shown = wert === 'ks' ? (v || '–') : fmt(v);
     const t = tWert(e);
-    const tipTxt = `${esc(e.skala_name || e.skala)}<br>T-Wert ${fmt(t)} · PR ${fmt(e.pr)} · RW ${fmt(e.rw)}${e.ks ? ' · KS ' + esc(e.ks) : ''}${e.fq != null ? ' · gFQ ' + fmt(e.fq) + ' %' : ''}${e.hinweis ? '<br><i>' + esc(e.hinweis) + '</i>' : ''}${e.tw == null && t != null ? '<br><i>T-Wert aus PR geschätzt</i>' : ''}`;
+    const tipTxt = `${esc(e.skala_name || e.skala)}<br>T-Wert ${fmt(t)} · PR ${fmt(e.pr)} · RW ${fmt(e.rw)}${e.ks ? ' · KS ' + esc(e.ks) : ''}${e.fq != null ? ' · gFQ ' + fmt(e.fq) + ' %' : ''}${e.hinweis ? '<br><i>' + esc(e.hinweis) + '</i>' : ''}${e.tw == null && t != null ? '<br><i>T-Wert aus PR geschätzt</i>' : ''}${UMR[e.skala] ? '<br><i>' + UMR[e.skala].kurz + '</i>' : ''}`;
     return `<span class="cell" data-tip="${tipTxt}"><i class="dot ${b}"></i>${shown}${e.hinweis ? '<span class="flag">*</span>' : ''}</span>`;
   }
 
@@ -273,7 +273,8 @@
         <div class="field" style="flex:1;min-width:220px"><label>Testdurchführung</label>
           <select id="k-test">${tests.map(x => `<option value="${x.id}" ${x.id === t.id ? 'selected' : ''}>${esc(testLabel(x))}</option>`).join('')}</select></div>
         <div class="field"><label>Wert in der Tabelle</label>
-          <select id="k-wert">${[['tw', 'T-Wert'], ['pr', 'Prozentrang'], ['rw', 'Rohwert']].concat(t.verfahren === 'HSP' ? [['ks', 'Kompetenzstufe']] : [])
+          <select id="k-wert">${(t.verfahren === 'SLS' ? [['tw', 'T-Wert'], ['rw', 'Lesequotient'], ['pr', 'Prozentrang'], ['ks', 'Leistungsstufe']]
+            : [['tw', 'T-Wert'], ['pr', 'Prozentrang'], ['rw', 'Rohwert']].concat(t.verfahren === 'HSP' ? [['ks', 'Kompetenzstufe']] : t.verfahren === 'STOLLE' ? [['ks', 'Leistungsstufe']] : []))
             .map(([v, l]) => `<option value="${v}" ${v === state.klasseWert ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <button class="btn" id="k-csv">CSV exportieren</button>
         <button class="btn" id="k-print" onclick="window.print()">Drucken</button>
@@ -292,6 +293,8 @@
           </div>
         </div>
       </div>
+      ${umrechnungsHinweis(t)}
+      ${leseVerlauf(t)}
       <div class="card">
         <div class="card-head"><h2>Einzelergebnisse</h2><span class="muted small">Spaltenkopf sortiert · * = Hinweis (hochgerechnet, Grenzwert oder nicht auswertbar)</span></div>
         <div id="k-matrix"></div>
@@ -330,6 +333,39 @@
       })].join(';')));
       download(`${t.klasse}_${t.verfahren}_${t.schuljahr.replace('/', '-')}.csv`, '﻿' + lines.join('\n'), 'text/csv');
     };
+  }
+
+  /* Umrechnung der Lesetests in T-Werte (für die Vergleichbarkeit mit HSP/LRP) */
+  const UMR = {
+    LQ: { kurz: 'T-Wert umgerechnet aus dem Lesequotienten: T = 50 + (LQ − 100) / 1,5', test: 'SLS', formel: 'T = 50 + (LQ − 100) / 1,5', grenze: 'T 40 entspricht etwa LQ 85', vorlage: 'LQ unter 90' },
+    LES: { kurz: 'T-Wert umgerechnet aus dem Prozentrang (Normalverteilung)', test: 'STOLLE', formel: 'Prozentrang über die Normalverteilung in T-Werte übertragen', grenze: 'T 40 entspricht etwa PR 16', vorlage: 'PR ≤ 24' }
+  };
+  function umrechnungsHinweis(t) {
+    const u = UMR[hauptskala(t)]; if (!u) return '';
+    return `<div class="msg small"><b>Hinweis zur Umrechnung:</b> Die ${u.test}-Ergebnisse wurden in T-Werte umgerechnet (${u.formel}), damit sie mit HSP und LRP vergleichbar sind.
+      Klassenprofil, Einzelergebnisse und Förderliste nutzen deshalb die gemeinsame Grenze T 40; ${u.grenze}.
+      Die Einstufung laut Testvorlage (Risikogruppe ${u.vorlage}) zeigen „Leistungsstufen im Verlauf“ und der Jahrgangsspiegel.</div>`;
+  }
+
+  /** Leistungsstufen der Testvorlage im Verlauf (gleicher Jahrgang und Zug) */
+  function leseVerlauf(t) {
+    const B = LT()[t.verfahren]; if (!B) return '';
+    const hj = (x) => window.Spiegel ? window.Spiegel.halbjahrVon(x) : 1;
+    const reihe = state.tests.filter(x => x.verfahren === t.verfahren && jahrgang(x) === jahrgang(t) && zug(x) === zug(t))
+      .sort((a, b) => a.schuljahr.localeCompare(b.schuljahr) || hj(a) - hj(b));
+    const zp = (x) => (x.testversion || '').replace(/^(STOLLE|SLS)\s*/, '').replace(/\s*Klasse\s*\d+$/, '') + (x.verfahren === 'SLS' ? ` Kl. ${x.stufe}` : '');
+    const n = (x) => x.ergebnisse.filter(e => e.ks).length;
+    return `<div class="card">
+      <div class="card-head"><h2>Leistungsstufen ${esc(t.verfahren)} im Verlauf</h2><span class="muted small">Zug ${esc(zug(t).toUpperCase())}, Einschulung ${jahrgang(t)} · Stufen laut Testvorlage · Risikogruppe: ${esc(B.risikoText)}</span></div>
+      <div class="table-wrap"><table class="spiegel"><thead><tr><th>Leistungsstufe</th>${reihe.map(x => `<th class="r gs ${x.id === t.id ? 'aktuell' : ''}">${esc(zp(x))}<br><span class="muted">${esc(x.klasse)} · ${esc(x.schuljahr)}</span></th>`).join('')}</tr></thead>
+      <tbody>${B.baender.map(([, lab, name], i) => `<tr><td><b>${esc(lab)}</b> ${esc(name)}</td>${reihe.map(x => {
+        const c = x.ergebnisse.filter(e => e.ks === name).length, N = n(x);
+        const risk = B.risiko(x.verfahren === 'SLS' ? { rw: B.baender[i][0] === -Infinity ? 0 : B.baender[i][0] } : { pr: B.baender[i][0] });
+        return `<td class="r num gs ${x.id === t.id ? 'aktuell' : ''}">${c ? `<b>${c}</b> <span class="muted">(${pct(c / N)})</span>` : '<span class="muted">–</span>'}${risk && c ? ' <i class="dot du" title="Risikogruppe"></i>' : ''}</td>`;
+      }).join('')}</tr>`).join('')}
+      <tr class="sum"><td>Getestete Kinder</td>${reihe.map(x => `<td class="r num gs">${n(x)}</td>`).join('')}</tr></tbody></table></div>
+      ${reihe.length < 2 ? '<p class="muted small" style="margin:8px 0 0">Weitere Spalten erscheinen, sobald derselbe Zug zu späteren Zeitpunkten getestet wurde.</p>' : ''}
+    </div>`;
   }
 
   /* ================= Stufenvergleich ================= */
@@ -443,7 +479,8 @@
           <option value="alle" ${state.flMode === 'alle' ? 'selected' : ''}>Alle Kinder</option></select></div>
         <button class="btn" id="fl-csv">CSV exportieren</button>
       </div>
-      <div class="card"><div class="card-head"><h2>Förderliste</h2><span class="muted small">Kinder mit mindestens einem Bereich unter T 40 (≈ Prozentrang 16)</span></div><div id="fl-table"></div></div>`;
+      <div class="card"><div class="card-head"><h2>Förderliste</h2><span class="muted small">Kinder mit mindestens einem Bereich unter T 40 (≈ Prozentrang 16)</span></div><div id="fl-table"></div>
+        ${tests.some(t => UMR[hauptskala(t)]) ? `<p class="muted small" style="margin:10px 0 0">† Umgerechnet: Für STOLLE (Prozentrang) und SLS (Lesequotient) wurden die Ergebnisse in T-Werte umgerechnet, damit sie mit HSP und LRP vergleichbar sind. T 40 entspricht etwa PR 16 bzw. LQ 85. Die Einstufung laut Testvorlage (Risikogruppe STOLLE PR ≤ 24, SLS LQ unter 90) zeigen die Klassenansicht und der Jahrgangsspiegel.</p>` : ''}</div>`;
     const q = (state.flQ || '').trim().toLowerCase();
     const rows = [];
     tests.forEach(t => kennungen(t).forEach(k => {
@@ -459,11 +496,11 @@
     if (!rows.length) { $('#fl-table').innerHTML = '<p class="muted">Keine Treffer.</p>'; }
     else tabelle($('#fl-table'), [
       { key: 'kennung', label: 'Kennung', sticky: true, html: r => `<b>${esc(r.kennung)}</b>` },
-      { key: 'klasse', label: 'Klasse' }, { key: 'sj', label: 'Schuljahr' }, { key: 'test', label: 'Test' },
+      { key: 'klasse', label: 'Klasse' }, { key: 'sj', label: 'Schuljahr' }, { key: 'test', label: 'Test', html: r => esc(r.test) + (UMR[hauptskala(r.t)] ? ' <span class="muted" title="in T-Werte umgerechnet">†</span>' : '') },
       { key: 'haupt', label: 'Hauptskala T', r: true, html: r => wertZelle(r.hsE) },
       { key: 'minT', label: 'niedrigster T', r: true, html: r => fmt(r.minT) },
       { key: 'anz', label: 'Bereiche < T40', r: true },
-      { key: 'b', label: 'Betroffene Bereiche', sortable: false, html: r => r.schwach.map(e => `<span class="cell" style="margin-right:8px">${wertZelle(e)} <span class="muted small">${esc(e.skala)}</span></span>`).join('') }
+      { key: 'b', label: 'Betroffene Bereiche', sortable: false, html: r => r.schwach.map(e => `<span class="cell" style="margin-right:8px">${wertZelle(e)} <span class="muted small">${esc(e.skala)}${UMR[e.skala] ? ' †' : ''}</span></span>`).join('') }
     ], rows, { sortKey: 'minT', dir: 1, onRow: r => { state.klasseTest = r.t.id; zeige('klasse'); } });
     const qi = $('#fl-q');
     qi.oninput = e => { state.flQ = e.target.value; const pos = e.target.selectionStart; renderFoerder(); const n = $('#fl-q'); n.focus(); n.setSelectionRange(pos, pos); };
@@ -477,18 +514,28 @@
 
   /* ================= Import ================= */
   const importQueue = [];
+  const LT = () => (window.LeseTabellen && window.LeseTabellen.STUFEN) || {};
+  function leseStufenInfo(t) {
+    const B = LT()[t.meta.verfahren]; if (!B) return '';
+    const n = t.ergebnisse.filter(e => e.ks).length;
+    return `<div class="small" style="margin-top:6px">${B.baender.map(([, lab, name]) => {
+      const c = t.ergebnisse.filter(e => e.ks === name).length;
+      return `<span style="margin-right:12px;white-space:nowrap">${esc(name)}: <b>${c}</b></span>`; }).join('')}<span class="muted">(${n} Kinder mit Wert)</span></div>`;
+  }
   function renderImport() {
     const el = $('#view-import');
     el.innerHTML = `
       <div class="card">
         <div class="card-head"><h2>Auswertungen importieren</h2></div>
         <label class="drop" id="drop">
-          <input type="file" id="imp-file" accept=".pdf,.csv" multiple hidden>
-          <div><b>PDF-Klassenauswertungen hier ablegen</b> oder antippen zum Auswählen</div>
-          <div class="muted small" style="margin-top:6px">Erkannt werden Klett-Diagnostik-Klassenauswertungen (HSP Deutsch, LRP Mathematik). Andere Verfahren über die CSV-Vorlage.</div>
+          <input type="file" id="imp-file" accept=".pdf,.csv,.xlsx" multiple hidden>
+          <div><b>Auswertungen hier ablegen</b> oder antippen zum Auswählen</div>
+          <div class="muted small" style="margin-top:6px">PDF: Klett-Klassenauswertungen (HSP, LRP). Excel: Ergebnistabellen der Klassenleitungen für STOLLE und SLS. CSV: andere Verfahren.</div>
         </label>
         <div class="row" style="margin-top:12px">
-          <button class="btn" id="imp-vorlage">CSV-Vorlage herunterladen</button>
+          <a class="btn" href="vorlagen/Ergebnistabelle_STOLLE.xlsx" download>Ergebnistabelle STOLLE</a>
+          <a class="btn" href="vorlagen/Ergebnistabelle_SLS.xlsx" download>Ergebnistabelle SLS</a>
+          <button class="btn" id="imp-vorlage">CSV-Vorlage (andere Tests)</button>
           ${!S.online ? '<button class="btn" id="imp-demo">Beispieldaten laden</button>' : ''}
         </div>
         <p class="muted small" style="margin-bottom:0">Die PDFs werden nur im Browser ausgelesen. Gespeichert werden ausschließlich Klasse, Testangaben und die pseudonymisierten Kennungen mit ihren Werten.</p>
@@ -516,8 +563,13 @@
       const item = { datei: f.name, status: 'lesen', tests: [] };
       importQueue.unshift(item); zeichneQueue();
       try {
-        if (/\.csv$/i.test(f.name)) item.tests = P.parseCsv(await f.text(), f.name);
-        else {
+        if (/\.xlsx$/i.test(f.name)) item.tests = await window.LeseTabellen.parseXlsx(await f.arrayBuffer(), f.name);
+        else if (/\.csv$/i.test(f.name)) {
+          const txt = await f.text();
+          item.tests = /schüler.?id/i.test(txt.split('\n').slice(0, 30).join(' ')) ? window.LeseTabellen.parseCsvTabelle(txt, f.name) : P.parseCsv(txt, f.name);
+        } else if (/\.xls$/i.test(f.name)) {
+          throw new Error('Altes Excel-Format (.xls). Bitte in Excel „Speichern unter“ → Excel-Arbeitsmappe (.xlsx) wählen.');
+        } else {
           if (!window.pdfjsLib) throw new Error('PDF-Bibliothek nicht geladen (Internetverbindung prüfen).');
           item.tests = [await P.parsePdf(await f.arrayBuffer(), f.name)];
         }
@@ -538,12 +590,15 @@
         return `<div class="card import-item" data-q="${qi}" data-t="${ti}">
           <div class="card-head"><h2>${esc(m.testversion || m.verfahren)}</h2><span class="muted small">${esc(it.datei)}</span></div>
           <div class="muted small">${n} Kinder · Bereiche: ${sk.map(esc).join(', ')}</div>
+          ${leseStufenInfo(t)}
+          ${(t.warnungen || []).length ? `<div class="msg err small" style="margin-top:8px">Nicht übernommen:<br>${t.warnungen.map(esc).join('<br>')}</div>` : ''}
           <div class="meta-grid">
             <div class="field"><label>Klasse</label><input type="text" data-f="klasse" value="${esc(m.klasse)}"></div>
             <div class="field"><label>Stufe</label><input type="number" min="1" max="13" data-f="stufe" value="${esc(m.stufe)}"></div>
             <div class="field"><label>Schuljahr (JJJJ/JJ)</label><input type="text" data-f="schuljahr" value="${esc(m.schuljahr)}" placeholder="2026/27"></div>
             <div class="field"><label>Testdatum</label><input type="date" data-f="testdatum" value="${esc(m.testdatum || '')}"></div>
-            <div class="field"><label>Fach</label><input type="text" data-f="fach" value="${esc(m.fach)}"></div>
+            ${LT()[m.verfahren] ? `<div class="field"><label>Zeitpunkt</label><select data-f="zeitpunkt">${LT()[m.verfahren].zeitpunkte.map(z => `<option ${z === t.zeitpunkt ? 'selected' : ''}>${esc(z)}</option>`).join('')}${t.zeitpunkt && !LT()[m.verfahren].zeitpunkte.includes(t.zeitpunkt) ? `<option selected>${esc(t.zeitpunkt)}</option>` : ''}</select></div>`
+              : `<div class="field"><label>Fach</label><input type="text" data-f="fach" value="${esc(m.fach)}"></div>`}
           </div>
           <div class="row">${t.gespeichert ? '<span class="msg ok">✓ gespeichert</span>' : `<button class="btn primary" data-act="save">Speichern</button>`}
             ${t.dup && !t.gespeichert ? '<button class="btn danger" data-act="replace">Vorhandenen Test ersetzen</button>' : ''}
@@ -552,7 +607,17 @@
       }).join('')).join('');
     $$('.import-item', box).forEach(card => {
       const t = importQueue[+card.dataset.q].tests[+card.dataset.t];
-      $$('input[data-f]', card).forEach(i => i.onchange = () => { t.meta[i.dataset.f] = i.dataset.f === 'stufe' ? parseInt(i.value, 10) : i.value; });
+      $$('input[data-f], select[data-f]', card).forEach(i => i.onchange = () => {
+        const f = i.dataset.f;
+        if (f === 'zeitpunkt') t.zeitpunkt = i.value;
+        else t.meta[f] = f === 'stufe' ? parseInt(i.value, 10) : i.value;
+        if (f === 'klasse' && !t.meta.stufe) t.meta.stufe = parseInt((i.value.match(/\d+/) || [])[0], 10) || null;
+        if (LT()[t.meta.verfahren]) {
+          if (!t.zeitpunkt && t.meta.verfahren === 'STOLLE' && t.meta.stufe) t.zeitpunkt = 'Ende Klasse ' + t.meta.stufe;
+          t.meta.testversion = t.meta.verfahren === 'STOLLE' ? `STOLLE ${t.zeitpunkt}` : `SLS ${t.zeitpunkt} Klasse ${t.meta.stufe || '?'}`;
+          zeichneQueue();
+        }
+      });
       $$('button[data-act]', card).forEach(b => b.onclick = async () => {
         const m = t.meta;
         if (!m.klasse || !m.stufe || !/^\d{4}\/\d{2}$/.test(m.schuljahr || '')) { t.err = 'Bitte Klasse, Stufe und Schuljahr (z. B. 2026/27) angeben.'; zeichneQueue(); return; }
@@ -637,7 +702,9 @@
     const t = $('#toast'); t.textContent = text; t.className = 'msg ' + (fehler ? 'err' : 'ok'); t.style.display = 'block';
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 4000);
   }
-  const RENDER = { overview: renderOverview, klasse: renderKlasse, stufe: renderStufe, jahrgang: renderJahrgang, foerder: renderFoerder, import: renderImport, admin: renderAdmin };
+  const CTX = { state, S, esc, fmt, tWert, hauptskala, skalen, skalaName, erg, download, meldung: (t, f) => meldung(t, f) };
+  const renderSpiegel = () => window.Spiegel ? window.Spiegel.render(CTX) : null;
+  const RENDER = { spiegel: renderSpiegel, overview: renderOverview, klasse: renderKlasse, stufe: renderStufe, jahrgang: renderJahrgang, foerder: renderFoerder, import: renderImport, admin: renderAdmin };
   function zeige(view) {
     state.view = view;
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.view === view));
@@ -665,9 +732,17 @@
     state.session = await S.session();
     if (!state.session) {
       $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+      $('#app-tabs').classList.add('hidden');
       $('#login-form').onsubmit = async (e) => {
         e.preventDefault();
+        const mail = $('#login-mail').value.trim(), pw = $('#login-pw').value;
+        if (!pw) { $('#login-msg').textContent = 'Bitte Passwort eingeben oder einen Anmeldelink anfordern.'; return; }
+        try { await S.loginPasswort(mail, pw); location.reload(); }
+        catch (er) { $('#login-msg').textContent = /invalid/i.test(er.message) ? 'E-Mail oder Passwort stimmt nicht.' : 'Fehler: ' + er.message; }
+      };
+      $('#login-link').onclick = async () => {
         const mail = $('#login-mail').value.trim();
+        if (!mail) { $('#login-msg').textContent = 'Bitte zuerst die E-Mail-Adresse eingeben.'; return; }
         try { await S.login(mail); $('#login-msg').textContent = 'Anmeldelink wurde an ' + mail + ' geschickt. Bitte E-Mail öffnen und Link antippen.'; }
         catch (er) { $('#login-msg').textContent = 'Fehler: ' + er.message; }
       };
@@ -676,6 +751,18 @@
     $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
     $('#user').textContent = S.online ? `${state.session.user.email} · ${state.session.rolle === 'leitung' ? 'Schulleitung' : 'Lehrkraft'}` : '';
     $('#logout').classList.toggle('hidden', !S.online);
+    $('#app-tabs').classList.remove('hidden');
+    $('#pw-open').classList.toggle('hidden', !S.online);
+    const dlg = $('#pw-dialog');
+    $('#pw-open').onclick = () => { $('#pw-msg').textContent = ''; $('#pw-neu').value = $('#pw-neu2').value = ''; dlg.showModal(); };
+    $('#pw-cancel').onclick = () => dlg.close();
+    $('#pw-save').onclick = async () => {
+      const a = $('#pw-neu').value, b = $('#pw-neu2').value;
+      if (a.length < 8) { $('#pw-msg').textContent = 'Mindestens 8 Zeichen.'; return; }
+      if (a !== b) { $('#pw-msg').textContent = 'Die beiden Eingaben stimmen nicht überein.'; return; }
+      try { await S.passwortAendern(a); $('#pw-msg').textContent = 'Passwort gespeichert.'; setTimeout(() => dlg.close(), 1200); }
+      catch (e) { $('#pw-msg').textContent = 'Fehler: ' + e.message; }
+    };
     $('#logout').onclick = async () => { await S.logout(); location.reload(); };
     $('.tab[data-view="admin"]').classList.toggle('hidden', S.online && state.session.rolle !== 'leitung');
     await laden();

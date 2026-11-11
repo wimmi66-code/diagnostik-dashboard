@@ -15,15 +15,19 @@
 
   function bereichVon(t) {
     const s = [t.verfahren, t.testversion, t.fach].join(' ');
-    if (/lese|elfe|stolper|slrt|\bsls\b|wllp|lgvt|salzburger/i.test(s)) return 'lesen';
+    if (/^(STOLLE|SLS)$/.test(t.verfahren) || /lese|elfe|stolper|stolle|slrt|\bsls\b|wllp|lgvt|salzburger/i.test(s)) return 'lesen';
     if (/mathe|rechnen|\blrp\b|demat/i.test(s)) return 'mathe';
     if (/deutsch|rechtschreib|\bhsp\b/i.test(s)) return 'rs';
     return null;
   }
   function halbjahrVon(t) {
     if (t.testdatum) { const m = +String(t.testdatum).slice(5, 7); return (m >= 8 || m === 1) ? 1 : 2; }
-    return /mitte|ende|frühjahr/i.test(t.testversion || '') ? 2 : 1;
+    const v = t.testversion || '';
+    if (/aug|sep|anfang|herbst/i.test(v)) return 1;
+    return /mitte|ende|frühjahr|apr|mai/i.test(v) ? 2 : 1;
   }
+  const LESE = () => (window.LeseTabellen && window.LeseTabellen.STUFEN) || {};
+  function schnittLabelLesen(verfahren) { return verfahren === 'SLS' ? 'Schnitt LQ' : verfahren === 'STOLLE' ? 'Schnitt PR' : 'Schnitt R/Min'; }
   const mean = (a) => { const v = a.filter(x => x != null && !Number.isNaN(x)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
   function ampel(p) { if (p == null) return null; return p > 0.3 ? 'Rot' : p >= 0.2 ? 'Gelb' : 'Grün'; }
   const maxOf = (a) => { const v = a.filter(x => x != null); return v.length ? Math.max(...v) : null; };
@@ -44,16 +48,22 @@
       }).length / n;
     } else if (b === 'mathe') {
       risiko = haupt.filter(e => (e.pr != null ? Number(e.pr) < 15 : C.tWert(e) < 39.6)).length / n;
+    } else if (LESE()[t.verfahren]) {
+      risiko = haupt.filter(LESE()[t.verfahren].risiko).length / n;      // Stufen der Testvorlage
     } else {
       risiko = haupt.filter(e => C.tWert(e) < 40).length / n;
     }
-    const schnitt = b === 'lesen' ? mean(haupt.map(e => e.rw == null ? null : Number(e.rw))) : mean(haupt.map(C.tWert));
+    let schnitt;
+    if (b !== 'lesen') schnitt = mean(haupt.map(C.tWert));
+    else if (t.verfahren === 'STOLLE') schnitt = mean(haupt.map(e => e.pr == null ? null : Number(e.pr)));
+    else schnitt = mean(haupt.map(e => e.rw == null ? null : Number(e.rw)));
     return { n, risiko, schnitt, test: t, skala: C.skalaName(t, hs) };
   }
 
   /** Spiegel für ein Schuljahr und Halbjahr berechnen */
-  function berechne(C, tests, notizen, sj, hj) {
-    const imZeitraum = tests.filter(t => t.schuljahr === sj && halbjahrVon(t) === hj && bereichVon(t));
+  function berechne(C, tests, notizen, sj, hj, lesetest) {
+    const imZeitraum = tests.filter(t => t.schuljahr === sj && halbjahrVon(t) === hj && bereichVon(t) &&
+      !(lesetest && bereichVon(t) === 'lesen' && t.verfahren !== lesetest));
     const stufen = [...new Set(imZeitraum.map(t => t.stufe))].sort((a, b) => a - b);
     const notiz = (stufe, klasse) => notizen.find(n => n.schuljahr === sj && +n.halbjahr === hj && +n.stufe === stufe && (n.klasse || '') === (klasse || '')) || {};
     return stufen.map(stufe => {
@@ -77,12 +87,13 @@
         gesamt[B.k] = v.length ? { n: v.reduce((s, x) => s + x.n, 0), risiko: mean(v.map(x => x.risiko)), schnitt: mean(v.map(x => x.schnitt)) } : null;
       });
       const schueler = klassen.reduce((s, k) => s + (maxOf(BEREICHE.map(B => k.werte[B.k] && k.werte[B.k].n)) || 0), 0);
-      return { stufe, klassen, gesamt, schueler, versionen, ampel: ampel(maxOf(BEREICHE.map(B => gesamt[B.k] && gesamt[B.k].risiko))), notiz: notiz(stufe, '') };
+      const leseVerf = [...new Set(ts.filter(t => bereichVon(t) === 'lesen').map(t => t.verfahren))];
+      return { stufe, klassen, gesamt, schueler, versionen, schnittLesen: schnittLabelLesen(leseVerf.length === 1 ? leseVerf[0] : null), ampel: ampel(maxOf(BEREICHE.map(B => gesamt[B.k] && gesamt[B.k].risiko))), notiz: notiz(stufe, '') };
     });
   }
 
   /* ---------------- Ansicht ---------------- */
-  const ui = { sj: null, hj: null };
+  const ui = { sj: null, hj: null, lese: null };
   function ampelChip(a) {
     if (!a) return '<span class="muted">–</span>';
     const k = a === 'Grün' ? 'gruen' : a === 'Gelb' ? 'gelb' : 'rot';
@@ -101,7 +112,9 @@
     if (!hjs.includes(ui.hj)) ui.hj = hjs[hjs.length - 1];
     let notizen = [];
     try { notizen = await S.notizen(); } catch (e) { C.meldung('Notizen konnten nicht geladen werden: ' + e.message, true); }
-    const daten = berechne(C, state.tests, notizen, ui.sj, ui.hj);
+    const leseVerfahren = [...new Set(state.tests.filter(t => t.schuljahr === ui.sj && halbjahrVon(t) === ui.hj && bereichVon(t) === 'lesen').map(t => t.verfahren))].sort();
+    if (!leseVerfahren.includes(ui.lese)) ui.lese = leseVerfahren.includes('SLS') ? 'SLS' : (leseVerfahren[0] || null);
+    const daten = berechne(C, state.tests, notizen, ui.sj, ui.hj, leseVerfahren.length > 1 ? ui.lese : null);
     const leitung = !S.online || (state.session && state.session.rolle === 'leitung');
     const pctF = (v) => v == null ? '–' : (v * 100).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
     const zelle = (w, B) => w ? `<td class="r num gs">${w.n}</td><td class="r num">${pctF(w.risiko)}</td><td class="r num">${fmt(w.schnitt)}</td>` : '<td class="r muted gs">–</td><td class="r muted">–</td><td class="r muted">–</td>';
@@ -110,6 +123,7 @@
       <div class="filters">
         <div class="field"><label for="sp-sj">Schuljahr</label><select id="sp-sj">${sjs.map(s => `<option ${s === ui.sj ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
         <div class="field"><label for="sp-hj">Stand</label><select id="sp-hj">${[1, 2].filter(h => hjs.includes(h)).map(h => `<option value="${h}" ${h === ui.hj ? 'selected' : ''}>${HJ_NAME[h]}</option>`).join('')}</select></div>
+        ${leseVerfahren.length > 1 ? `<div class="field"><label for="sp-lese">Lesetest</label><select id="sp-lese">${leseVerfahren.map(v => `<option ${v === ui.lese ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>` : ''}
         <button class="btn primary" id="sp-xlsx">Als Excel herunterladen</button>
       </div>
       ${daten.map(d => `
@@ -118,7 +132,7 @@
         <div class="table-wrap"><table class="spiegel">
           <thead>
             <tr class="grp"><th colspan="2">Stammdaten</th>${BEREICHE.map(B => `<th colspan="3" class="gs">${esc(B.titel)}<br><span class="sub">${esc(d.versionen[B.k] ? [...d.versionen[B.k]].join(', ') : B.bsp)}</span></th>`).join('')}<th colspan="2" class="gs">Gesamtbeurteilung &amp; Maßnahmen</th></tr>
-            <tr><th>Klasse</th><th>Klassenleitung</th>${BEREICHE.map(B => `<th class="r gs">Anzahl S.</th><th class="r">${esc(B.risiko).replace('\n', '<br>')}</th><th class="r">${esc(B.schnitt)}</th>`).join('')}<th class="gs">Handlungsbedarf</th><th>Vereinbarte Fördermaßnahme / Ressourcen</th></tr>
+            <tr><th>Klasse</th><th>Klassenleitung</th>${BEREICHE.map(B => `<th class="r gs">Anzahl S.</th><th class="r">${esc(B.risiko).replace('\n', '<br>')}</th><th class="r">${esc(B.k === 'lesen' ? d.schnittLesen : B.schnitt)}</th>`).join('')}<th class="gs">Handlungsbedarf</th><th>Vereinbarte Fördermaßnahme / Ressourcen</th></tr>
           </thead>
           <tbody>
             ${d.klassen.map(k => `<tr>
@@ -147,7 +161,7 @@
       <div class="card small">
         <h3 style="margin-bottom:8px">So wird gerechnet</h3>
         <div class="grid two" style="gap:8px 24px">
-          <div><b>Lesen:</b> Anteil Kinder unter T 40 (≈ PR 16) in der Hauptskala; Schnitt = mittlerer Rohwert (z. B. richtige Wörter pro Minute).<br>
+          <div><b>Lesen:</b> STOLLE: Risikogruppe = PR ≤ 24, Schnitt = mittlerer PR. SLS: Risikogruppe = LQ unter 90, Schnitt = mittlerer LQ (Stufen der Testvorlagen). Andere Lesetests: T unter 40, Schnitt = mittlerer Rohwert.<br>
             <b>Rechtschreibung:</b> Anteil Kinder mit mindestens einer Strategie (A, O, M, O+M, WÜ) unter T 40; Schnitt = mittlerer T-Wert der Graphemtreffer.<br>
             <b>Mathematik:</b> Anteil Kinder unter PR 15 in der Hauptskala (LRP: Operationsverständnis); Schnitt = mittlerer T-Wert.</div>
           <div><b>Handlungsbedarf</b> richtet sich nach dem höchsten Anteil der drei Bereiche:<br>
@@ -158,6 +172,7 @@
 
     document.getElementById('sp-sj').onchange = e => { ui.sj = e.target.value; ui.hj = null; render(C); };
     document.getElementById('sp-hj').onchange = e => { ui.hj = +e.target.value; render(C); };
+    const sl = document.getElementById('sp-lese'); if (sl) sl.onchange = e => { ui.lese = e.target.value; render(C); };
     document.getElementById('sp-xlsx').onclick = () => exportXlsx(C, daten, ui.sj, ui.hj).catch(e => C.meldung('Excel-Export fehlgeschlagen: ' + e.message, true));
     el.querySelectorAll('.sp-in').forEach(inp => inp.onchange = async () => {
       const stufe = +inp.dataset.stufe, klasse = inp.dataset.klasse;
@@ -213,7 +228,7 @@
         c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       });
       ws.getRow(4).height = 32;
-      const kopf = ['Klasse', 'Klassenleitung', ...BEREICHE.flatMap(B => ['Anzahl S.', B.risiko, B.schnitt]), 'Handlungsbedarf', 'Vereinbarte Fördermaßnahme / Ressourcen'];
+      const kopf = ['Klasse', 'Klassenleitung', ...BEREICHE.flatMap(B => ['Anzahl S.', B.risiko, B.k === 'lesen' ? d.schnittLesen : B.schnitt]), 'Handlungsbedarf', 'Vereinbarte Fördermaßnahme / Ressourcen'];
       kopf.forEach((t, i) => {
         const c = ws.getRow(5).getCell(i + 1); c.value = t;
         c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = fill(MITTEL);
@@ -305,7 +320,7 @@
       [5, 'Gelb', '20% bis 30% Risikogruppe – Beobachtung & gezielte Binnendifferenzierung im Jahrgang.'],
       [6, 'Rot', 'Über 30% Risikogruppe – Erhöhter Handlungsbedarf, Ressourcenzuweisung (z.B. Erzieher/Förderstunden).'],
       [7, 'Maßgeblich:', 'Der höchste Anteil der drei Bereiche Lesen, Rechtschreibung und Mathematik.'],
-      [9, 'Berechnung Lesen:', 'Anteil der Kinder unter T 40 (≈ PR 16) in der Hauptskala; Schnitt = mittlerer Rohwert (z. B. richtige Wörter pro Minute).'],
+      [9, 'Berechnung Lesen:', 'STOLLE: Risikogruppe = Prozentrang ≤ 24, Schnitt = mittlerer PR. SLS: Risikogruppe = Lesequotient unter 90, Schnitt = mittlerer LQ (jeweils Stufen der Testvorlage). Andere Lesetests: T unter 40, Schnitt = mittlerer Rohwert.'],
       [10, 'Berechnung Rechtschreibung:', 'Anteil der Kinder mit mindestens einer Rechtschreibstrategie (A, O, M, O+M, WÜ) unter T 40; Schnitt = mittlerer T-Wert der Graphemtreffer.'],
       [11, 'Berechnung Mathematik:', 'Anteil der Kinder unter PR 15 in der Hauptskala (LRP: Operationsverständnis); Schnitt = mittlerer T-Wert.'],
       [12, 'Jahrgangswerte:', 'Anzahl summiert; Anteile und Schnitte als Mittel der Klassenwerte.'],

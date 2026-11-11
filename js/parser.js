@@ -14,10 +14,11 @@
     ÜOE: 'Überflüssige orthogr. Elemente', ÜS: 'Überflüssige Satzzeichen', OZ: 'Oberzeichenfehler',
     // LRP Mathe
     ZV: 'Zahlenverständnis', OV: 'Operationsverständnis', AD: 'Addition', SU: 'Subtraktion',
-    MU: 'Multiplikation', DI: 'Division'
+    MU: 'Multiplikation', DI: 'Division',
+    LES: 'Leseleistung (STOLLE)', LQ: 'Lesequotient (SLS)'
   };
   // Hauptskala je Verfahren (für Übersichten)
-  const HAUPTSKALA = { HSP: ['GT', 'GP'], LRP: ['OV', 'ZV'] };
+  const HAUPTSKALA = { HSP: ['GT', 'GP'], LRP: ['OV', 'ZV'], STOLLE: ['LES'], SLS: ['LQ'] };
 
   const num = (s) => {
     if (s == null) return null;

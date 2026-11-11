@@ -21,6 +21,8 @@
   /* Kategorial (Klassen) – feste Reihenfolge */
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+  --good-ink: #006300; --warning-ink: #7a5200; --critical-ink: #a32424;
   --radius: 10px;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -34,6 +36,7 @@
     --b-du: #e05a5a; --b-u: #8f4a46; --b-d: #4a4a46; --b-ue: #3987e5;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
     --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good-ink: #5fd35f; --warning-ink: #fac75a; --critical-ink: #f08a8a;
   }
 }
 :root[data-theme="dark"] {
@@ -45,6 +48,7 @@
   --b-du: #e05a5a; --b-u: #8f4a46; --b-d: #4a4a46; --b-ue: #3987e5;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good-ink: #5fd35f; --warning-ink: #fac75a; --critical-ink: #f08a8a;
 }
 
 * { box-sizing: border-box; }
@@ -82,7 +86,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 16px; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 120px; }
 .field label { font-size: 0.75rem; color: var(--muted); }
-select, input[type="text"], input[type="email"], input[type="number"], input[type="date"] {
+select, input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"] {
   background: var(--surface); border: 1px solid var(--axis); border-radius: 8px; padding: 7px 10px; min-height: 38px; max-width: 100%;
 }
 .btn { border: 1px solid var(--axis); background: var(--surface); border-radius: 8px; padding: 7px 14px; min-height: 38px; cursor: pointer; }
@@ -121,7 +125,7 @@ tbody tr.clickable:hover { background: var(--surface-2); }
 
 /* Werte-Zelle mit Band */
 .cell { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-.dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.dot { display: inline-block; vertical-align: middle; width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .dot.du { background: var(--b-du); } .dot.u { background: var(--b-u); }
 .dot.d { background: var(--b-d); } .dot.ue { background: var(--b-ue); }
 .dot.na { border: 1px dashed var(--muted); }
@@ -148,6 +152,27 @@ tbody tr.clickable:hover { background: var(--surface-2); }
 .chart .hit { fill: transparent; cursor: default; }
 #tooltip { position: fixed; pointer-events: none; z-index: 50; background: var(--ink); color: var(--surface); font-size: 0.8rem; padding: 6px 9px; border-radius: 6px; max-width: 260px; opacity: 0; transition: opacity .1s; }
 
+/* ---------- Jahrgangsspiegel ---------- */
+table.spiegel th { white-space: normal; vertical-align: bottom; }
+table.spiegel tr.grp th { text-align: center; border-bottom: 2px solid var(--ink-2); color: var(--ink); font-size: 0.8rem; }
+table.spiegel tr.grp th .sub { font-weight: 400; color: var(--muted); }
+table.spiegel .gs { border-left: 1px solid var(--line); }
+table.spiegel .aktuell { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+table.spiegel tr.sum td { background: var(--surface-2); font-weight: 600; border-top: 2px solid var(--axis); }
+.sp-in { min-height: 32px; padding: 4px 8px; width: 150px; border-color: var(--line); }
+.sp-in.wide { width: 320px; }
+.sp-in:hover, .sp-in:focus { border-color: var(--axis); }
+.sp-in.saved { border-color: var(--good); box-shadow: 0 0 0 2px color-mix(in srgb, var(--good) 25%, transparent); }
+.ampel { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.85rem; padding: 2px 10px 2px 8px; border-radius: 999px; }
+.ampel i { font-style: normal; font-size: 0.7rem; }
+.ampel.gruen { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good-ink); }
+.ampel.gruen i { color: var(--good); }
+.ampel.gelb { background: color-mix(in srgb, var(--warning) 22%, transparent); color: var(--warning-ink); }
+.ampel.gelb i { color: var(--warning); }
+.ampel.rot { background: color-mix(in srgb, var(--critical) 14%, transparent); color: var(--critical-ink); }
+.ampel.rot i { color: var(--critical); }
+
 /* ---------- Import ---------- */
 .drop { display: block; cursor: pointer; border: 2px dashed var(--axis); border-radius: var(--radius); padding: 28px 16px; text-align: center; background: var(--surface); }
 .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
@@ -157,6 +182,10 @@ tbody tr.clickable:hover { background: var(--surface-2); }
 .msg.ok { color: var(--ink); }
 
 /* ---------- Login ---------- */
+.login-form { display: flex; flex-direction: column; gap: 10px; }
+.login-form .field input { width: 100%; }
+dialog { border: 1px solid var(--ring); color: var(--ink); width: min(420px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(0,0,0,.45); }
 .login { max-width: 420px; margin: 8vh auto; }
 .login .card > * + * { margin-top: 12px; }
 
