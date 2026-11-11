@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Diagnostik-Dashboard</title>
+  <meta name="description" content="Auswertung der Lernstandsdiagnostik je Klasse und Stufe">
+  <meta name="theme-color" content="#2a78d6">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2a78d6"/><rect x="7" y="17" width="4" height="8" rx="1.5" fill="#fff"/><rect x="14" y="11" width="4" height="14" rx="1.5" fill="#fff"/><rect x="21" y="7" width="4" height="18" rx="1.5" fill="#fff"/></svg>
+        <h1>Diagnostik-Dashboard</h1>
+      </div>
+      <span class="badge" id="mode">…</span>
+      <div class="spacer"></div>
+      <span class="muted small" id="user"></span>
+      <button class="btn small hidden" id="pw-open">Passwort ändern</button>
+      <button class="btn small hidden" id="logout">Abmelden</button>
+    </div>
+    <nav class="tabs" role="tablist" id="app-tabs">
+      <button class="tab" data-view="overview" role="tab">Überblick</button>
+      <button class="tab" data-view="klasse" role="tab">Klasse</button>
+      <button class="tab" data-view="stufe" role="tab">Stufenvergleich</button>
+      <button class="tab" data-view="jahrgang" role="tab">Jahrgang</button>
+      <button class="tab" data-view="spiegel" role="tab">Jahrgangsspiegel</button>
+      <button class="tab" data-view="foerder" role="tab">Förderliste</button>
+      <button class="tab" data-view="import" role="tab">Import</button>
+      <button class="tab" data-view="admin" role="tab">Verwaltung</button>
+    </nav>
+  </header>
+
+  <section id="login" class="login hidden">
+    <div class="card">
+      <h2>Anmelden</h2>
+      <p class="small muted">Zugang nur für freigeschaltete Konten der Schule.</p>
+      <form id="login-form" class="login-form">
+        <div class="field"><label for="login-mail">E-Mail</label><input type="email" id="login-mail" required placeholder="name@schule.de" autocomplete="username"></div>
+        <div class="field"><label for="login-pw">Passwort</label><input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password"></div>
+        <div class="row"><button class="btn primary" type="submit">Anmelden</button>
+          <button class="btn" type="button" id="login-link">Stattdessen Anmeldelink per E-Mail</button></div>
+      </form>
+      <p id="login-msg" class="small"></p>
+    </div>
+  </section>
+
+  <main id="app" class="hidden">
+    <div class="filters" style="margin-bottom:16px">
+      <div class="field"><label for="f-schuljahr">Schuljahr</label><select id="f-schuljahr"></select></div>
+      <div class="field"><label for="f-fach">Fach</label><select id="f-fach"></select></div>
+    </div>
+    <div id="toast" class="msg" style="display:none;margin-bottom:16px"></div>
+    <section class="view" id="view-overview"></section>
+    <section class="view" id="view-klasse"></section>
+    <section class="view" id="view-stufe"></section>
+    <section class="view" id="view-jahrgang"></section>
+    <section class="view" id="view-spiegel"></section>
+    <section class="view" id="view-foerder"></section>
+    <section class="view" id="view-import"></section>
+    <section class="view" id="view-admin"></section>
+  </main>
+  <dialog id="pw-dialog" class="card">
+    <form id="pw-form" method="dialog" class="login-form">
+      <h2>Passwort ändern</h2>
+      <div class="field"><label for="pw-neu">Neues Passwort (mind. 8 Zeichen)</label><input type="password" id="pw-neu" minlength="8" required autocomplete="new-password"></div>
+      <div class="field"><label for="pw-neu2">Wiederholen</label><input type="password" id="pw-neu2" minlength="8" required autocomplete="new-password"></div>
+      <p id="pw-msg" class="small"></p>
+      <div class="row"><button class="btn primary" id="pw-save" type="button">Speichern</button><button class="btn" id="pw-cancel" type="button">Schließen</button></div>
+    </form>
+  </dialog>
+  <div id="tooltip" role="tooltip"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/demo-data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/tabellen.js"></script>
+  <script src="js/spiegel.js"></script>
+  <script src="js/app.js"></script>
+  <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
+</body>
+</html>

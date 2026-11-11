@@ -1,6 +1,6 @@
 /* Service Worker: App-Hülle offline verfügbar; Daten kommen immer frisch aus der Datenbank. */
-const CACHE = 'diagnostik-v3';
-const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/parser.js', 'js/spiegel.js', 'js/config.js', 'js/demo-data.js', 'icon.svg', 'manifest.webmanifest'];
+const CACHE = 'diagnostik-v1';
+const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/store.js', 'js/parser.js', 'js/config.js', 'js/demo-data.js', 'icon.svg', 'manifest.webmanifest'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

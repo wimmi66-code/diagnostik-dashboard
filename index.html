@@ -21,7 +21,6 @@
       <span class="badge" id="mode">…</span>
       <div class="spacer"></div>
       <span class="muted small" id="user"></span>
-      <button class="btn small hidden" id="pw-open">Passwort ändern</button>
       <button class="btn small hidden" id="logout">Abmelden</button>
     </div>
     <nav class="tabs" role="tablist" id="app-tabs">
@@ -29,7 +28,6 @@
       <button class="tab" data-view="klasse" role="tab">Klasse</button>
       <button class="tab" data-view="stufe" role="tab">Stufenvergleich</button>
       <button class="tab" data-view="jahrgang" role="tab">Jahrgang</button>
-      <button class="tab" data-view="spiegel" role="tab">Jahrgangsspiegel</button>
       <button class="tab" data-view="foerder" role="tab">Förderliste</button>
       <button class="tab" data-view="import" role="tab">Import</button>
       <button class="tab" data-view="admin" role="tab">Verwaltung</button>
@@ -39,12 +37,10 @@
   <section id="login" class="login hidden">
     <div class="card">
       <h2>Anmelden</h2>
-      <p class="small muted">Zugang nur für freigeschaltete Konten der Schule.</p>
-      <form id="login-form" class="login-form">
-        <div class="field"><label for="login-mail">E-Mail</label><input type="email" id="login-mail" required placeholder="name@schule.de" autocomplete="username"></div>
-        <div class="field"><label for="login-pw">Passwort</label><input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password"></div>
-        <div class="row"><button class="btn primary" type="submit">Anmelden</button>
-          <button class="btn" type="button" id="login-link">Stattdessen Anmeldelink per E-Mail</button></div>
+      <p class="small muted">Sie erhalten einen Anmeldelink per E-Mail. Zugang nur für freigeschaltete Konten der Schule.</p>
+      <form id="login-form" class="row">
+        <input type="email" id="login-mail" required placeholder="name@schule.de" style="flex:1;min-width:200px">
+        <button class="btn primary">Link senden</button>
       </form>
       <p id="login-msg" class="small"></p>
     </div>
@@ -60,20 +56,10 @@
     <section class="view" id="view-klasse"></section>
     <section class="view" id="view-stufe"></section>
     <section class="view" id="view-jahrgang"></section>
-    <section class="view" id="view-spiegel"></section>
     <section class="view" id="view-foerder"></section>
     <section class="view" id="view-import"></section>
     <section class="view" id="view-admin"></section>
   </main>
-  <dialog id="pw-dialog" class="card">
-    <form id="pw-form" method="dialog" class="login-form">
-      <h2>Passwort ändern</h2>
-      <div class="field"><label for="pw-neu">Neues Passwort (mind. 8 Zeichen)</label><input type="password" id="pw-neu" minlength="8" required autocomplete="new-password"></div>
-      <div class="field"><label for="pw-neu2">Wiederholen</label><input type="password" id="pw-neu2" minlength="8" required autocomplete="new-password"></div>
-      <p id="pw-msg" class="small"></p>
-      <div class="row"><button class="btn primary" id="pw-save" type="button">Speichern</button><button class="btn" id="pw-cancel" type="button">Schließen</button></div>
-    </form>
-  </dialog>
   <div id="tooltip" role="tooltip"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -83,7 +69,6 @@
   <script src="js/parser.js"></script>
   <script src="js/demo-data.js"></script>
   <script src="js/store.js"></script>
-  <script src="js/spiegel.js"></script>
   <script src="js/app.js"></script>
   <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});</script>
 </body>

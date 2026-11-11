@@ -637,9 +637,7 @@
     const t = $('#toast'); t.textContent = text; t.className = 'msg ' + (fehler ? 'err' : 'ok'); t.style.display = 'block';
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 4000);
   }
-  const CTX = { state, S, esc, fmt, tWert, hauptskala, skalen, skalaName, erg, download, meldung: (t, f) => meldung(t, f) };
-  const renderSpiegel = () => window.Spiegel ? window.Spiegel.render(CTX) : null;
-  const RENDER = { spiegel: renderSpiegel, overview: renderOverview, klasse: renderKlasse, stufe: renderStufe, jahrgang: renderJahrgang, foerder: renderFoerder, import: renderImport, admin: renderAdmin };
+  const RENDER = { overview: renderOverview, klasse: renderKlasse, stufe: renderStufe, jahrgang: renderJahrgang, foerder: renderFoerder, import: renderImport, admin: renderAdmin };
   function zeige(view) {
     state.view = view;
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.view === view));
@@ -667,17 +665,9 @@
     state.session = await S.session();
     if (!state.session) {
       $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
-      $('#app-tabs').classList.add('hidden');
       $('#login-form').onsubmit = async (e) => {
         e.preventDefault();
-        const mail = $('#login-mail').value.trim(), pw = $('#login-pw').value;
-        if (!pw) { $('#login-msg').textContent = 'Bitte Passwort eingeben oder einen Anmeldelink anfordern.'; return; }
-        try { await S.loginPasswort(mail, pw); location.reload(); }
-        catch (er) { $('#login-msg').textContent = /invalid/i.test(er.message) ? 'E-Mail oder Passwort stimmt nicht.' : 'Fehler: ' + er.message; }
-      };
-      $('#login-link').onclick = async () => {
         const mail = $('#login-mail').value.trim();
-        if (!mail) { $('#login-msg').textContent = 'Bitte zuerst die E-Mail-Adresse eingeben.'; return; }
         try { await S.login(mail); $('#login-msg').textContent = 'Anmeldelink wurde an ' + mail + ' geschickt. Bitte E-Mail öffnen und Link antippen.'; }
         catch (er) { $('#login-msg').textContent = 'Fehler: ' + er.message; }
       };
@@ -686,18 +676,6 @@
     $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
     $('#user').textContent = S.online ? `${state.session.user.email} · ${state.session.rolle === 'leitung' ? 'Schulleitung' : 'Lehrkraft'}` : '';
     $('#logout').classList.toggle('hidden', !S.online);
-    $('#app-tabs').classList.remove('hidden');
-    $('#pw-open').classList.toggle('hidden', !S.online);
-    const dlg = $('#pw-dialog');
-    $('#pw-open').onclick = () => { $('#pw-msg').textContent = ''; $('#pw-neu').value = $('#pw-neu2').value = ''; dlg.showModal(); };
-    $('#pw-cancel').onclick = () => dlg.close();
-    $('#pw-save').onclick = async () => {
-      const a = $('#pw-neu').value, b = $('#pw-neu2').value;
-      if (a.length < 8) { $('#pw-msg').textContent = 'Mindestens 8 Zeichen.'; return; }
-      if (a !== b) { $('#pw-msg').textContent = 'Die beiden Eingaben stimmen nicht überein.'; return; }
-      try { await S.passwortAendern(a); $('#pw-msg').textContent = 'Passwort gespeichert.'; setTimeout(() => dlg.close(), 1200); }
-      catch (e) { $('#pw-msg').textContent = 'Fehler: ' + e.message; }
-    };
     $('#logout').onclick = async () => { await S.logout(); location.reload(); };
     $('.tab[data-view="admin"]').classList.toggle('hidden', S.online && state.session.rolle !== 'leitung');
     await laden();
