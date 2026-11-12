@@ -11,6 +11,7 @@ Web-App für die Schulleitung: Klett-Diagnostik-Klassenauswertungen (PDF) einles
 | Stufenvergleich | Parallelklassen einer Stufe im selben Test: Median mit mittleren 50 %, Verteilung, Matrix über alle Bereiche |
 | Jahrgang | Verlauf eines Einschulungsjahrgangs über mehrere Testzeitpunkte (z. B. 1d 2024/25 → 3d 2026/27) |
 | Jahrgangsspiegel | Kennzahlen je Klasse für Lesen, Rechtschreibung und Mathematik mit Ampel, Klassenleitung und vereinbarten Maßnahmen; schulweite Übersicht; Export als Excel im Aufbau des schulinternen Jahrgangsspiegels |
+| Analysen | Schaubilder: Förderbedarf je Zug, Entwicklung der Risikogruppe über die Schuljahre (mit Markierung einer Maßnahme), Leistungsstufen SLS/STOLLE je Zeitpunkt |
 | Förderliste | Alle Kinder mit mindestens einem Bereich unter T 40, Suche nach Kennung, CSV-Export |
 | Import | PDF-Auswertungen per Drag & Drop, Metadaten vor dem Speichern prüfen; CSV-Vorlage für andere Verfahren |
 | Verwaltung | Rollen (Schulleitung/Lehrkraft) und Klassen-Zuordnungen, Tests löschen |

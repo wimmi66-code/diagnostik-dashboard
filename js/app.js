@@ -743,7 +743,7 @@
   }
   const CTX = { state, S, esc, fmt, tWert, hauptskala, skalen, skalaName, erg, download, meldung: (t, f) => meldung(t, f) };
   const renderSpiegel = () => window.Spiegel ? window.Spiegel.render(CTX) : null;
-  const RENDER = { spiegel: renderSpiegel, overview: renderOverview, klasse: renderKlasse, stufe: renderStufe, jahrgang: renderJahrgang, foerder: renderFoerder, import: renderImport, admin: renderAdmin };
+  const RENDER = { analysen: () => window.Analysen && window.Analysen.render(CTX), spiegel: renderSpiegel, overview: renderOverview, klasse: renderKlasse, stufe: renderStufe, jahrgang: renderJahrgang, foerder: renderFoerder, import: renderImport, admin: renderAdmin };
   function zeige(view) {
     state.view = view;
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.view === view));
@@ -756,7 +756,7 @@
   $$('.tab').forEach(b => b.onclick = () => zeige(b.dataset.view));
   let rzT, rzW = window.innerWidth;
   window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => {
-    if (Math.abs(window.innerWidth - rzW) > 40 && ['klasse', 'stufe', 'jahrgang'].includes(state.view)) { rzW = window.innerWidth; RENDER[state.view](); }
+    if (Math.abs(window.innerWidth - rzW) > 40 && ['klasse', 'stufe', 'jahrgang', 'analysen'].includes(state.view)) { rzW = window.innerWidth; RENDER[state.view](); }
   }, 250); });
 
   async function laden() {

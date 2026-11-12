@@ -341,5 +341,5 @@
     C.meldung('Excel-Datei erstellt.');
   }
 
-  window.Spiegel = { render, berechne, bereichVon, halbjahrVon, exportXlsx };
+  window.Spiegel = { render, berechne, bereichVon, halbjahrVon, exportXlsx, kennzahl };
 })();
