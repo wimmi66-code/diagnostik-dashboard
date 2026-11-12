@@ -126,32 +126,34 @@
   function render(C) {
     const el = document.getElementById('view-analysen');
     const { esc, state } = C;
-    const tests = state.tests.filter(t => (!state.filter.schuljahr || t.schuljahr === state.filter.schuljahr));
+    const fachTests = state.tests.filter(t => !state.filter.fach || t.fach === state.filter.fach);
+    const tests = fachTests.filter(t => (!state.filter.schuljahr || t.schuljahr === state.filter.schuljahr));
     if (!state.tests.length) { el.innerHTML = '<div class="card empty">Noch keine Daten für Analysen vorhanden.</div>'; return; }
+    if (!state.tests.some(t => !state.filter.fach || t.fach === state.filter.fach)) { el.innerHTML = '<div class="card empty">Für das gewählte Fach liegen keine Tests vor.</div>'; return; }
     const leseVerf = [...new Set(tests.filter(t => window.Spiegel.bereichVon(t) === 'lesen').map(t => t.verfahren))].sort();
     if (ui.lesetest && !leseVerf.includes(ui.lesetest)) ui.lesetest = '';
     if (ui.lesetest === undefined) ui.lesetest = leseVerf.includes('SLS') ? 'SLS' : '';
-    const berMitDaten = BER.filter(([k]) => state.tests.some(t => window.Spiegel.bereichVon(t) === k));
+    const berMitDaten = BER.filter(([k]) => fachTests.some(t => window.Spiegel.bereichVon(t) === k));
     if (!berMitDaten.some(([k]) => k === ui.bereich)) ui.bereich = berMitDaten[0] ? berMitDaten[0][0] : 'lesen';
-    const alleSj = [...new Set(state.tests.map(t => t.schuljahr))].sort();
-    const stufenTests = state.tests.filter(t => window.LeseTabellen && window.LeseTabellen.STUFEN[t.verfahren]);
+    const alleSj = [...new Set(fachTests.map(t => t.schuljahr))].sort();
+    const stufenTests = fachTests.filter(t => window.LeseTabellen && window.LeseTabellen.STUFEN[t.verfahren]);
     const sv = [...new Set(stufenTests.map(t => t.verfahren))].sort();
     if (!sv.includes(ui.sverf)) ui.sverf = sv.includes('SLS') ? 'SLS' : sv[0];
     const stufen = [...new Set(stufenTests.filter(t => t.verfahren === ui.sverf).map(t => +t.stufe))].sort();
     if (!stufen.includes(+ui.sstufe)) ui.sstufe = stufen[0];
     merke();
-    const zeitraum = state.filter.schuljahr ? `Schuljahr ${state.filter.schuljahr}` : 'alle Schuljahre';
+    const zeitraum = (state.filter.schuljahr ? `Schuljahr ${state.filter.schuljahr}` : 'alle Schuljahre') + (state.filter.fach ? ` · ${state.filter.fach}` : '');
 
     el.innerHTML = `
       <div class="card">
-        <div class="card-head"><h2>Förderbedarf je Zug</h2><span class="muted small">Anteil der Kinder unter T 40 (≈ PR 16) in der Hauptskala · ${esc(zeitraum)} · Filter „Schuljahr“ oben</span></div>
+        <div class="card-head"><h2>Förderbedarf je Zug</h2><span class="muted small">Anteil der Kinder unter T 40 (≈ PR 16) in der Hauptskala · ${esc(zeitraum)} · Filter „Schuljahr“ und „Fach“ oben</span></div>
         ${leseVerf.length > 1 ? `<div class="filters" style="margin-bottom:8px"><div class="field"><label for="an-lese">Lesen aus</label><select id="an-lese"><option value="">allen Lesetests</option>${leseVerf.map(v => `<option ${v === ui.lesetest ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div></div>` : ''}
         <div class="legend" id="an-z-leg"></div>
         <div id="an-zug"></div>
         <p class="muted small" style="margin:6px 0 0">STOLLE und SLS sind für diesen Vergleich in T-Werte umgerechnet (†).</p>
       </div>
       <div class="card">
-        <div class="card-head"><h2>Entwicklung über die Schuljahre</h2><span class="muted small">Risikogruppe wie im Jahrgangsspiegel, alle Klassen zusammen</span></div>
+        <div class="card-head"><h2>Entwicklung über die Schuljahre</h2><span class="muted small">Risikogruppe wie im Jahrgangsspiegel, alle Klassen zusammen · alle Schuljahre${state.filter.fach ? ' · ' + esc(state.filter.fach) : ''}</span></div>
         <div class="filters" style="margin-bottom:8px">
           <div class="field"><label for="an-ber">Bereich</label><select id="an-ber">${berMitDaten.map(([k, n]) => `<option value="${k}" ${k === ui.bereich ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
           <div class="field"><label for="an-mark">Maßnahme markieren ab</label><select id="an-mark"><option value="">keine Markierung</option>${alleSj.map(s => `<option ${s === ui.mark ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
@@ -176,7 +178,7 @@
     document.getElementById('an-zug').innerHTML = za.zuege.length ? balkenGruppen(za.ber.map(b => b[1]), za.zuege, za.werte, { w: w1, titel: 'Förderbedarf je Zug', yLabel: 'Anteil unter T 40 (%)' }) : '<p class="muted">Keine Klassen mit Zugbuchstaben gefunden.</p>';
 
     // 2 Verlauf
-    const vl = verlauf(C, state.tests, ui.bereich);
+    const vl = verlauf(C, fachTests, ui.bereich);
     const markIdx = ui.mark ? vl.sjs.indexOf(ui.mark) : -1;
     const vw = document.getElementById('an-verlauf').clientWidth;
     document.getElementById('an-verlauf').innerHTML = (vw < 560 && vl.serien.length ? `<div class="legend" style="margin-bottom:6px">${vl.serien.map((se, i) => { const l = se.werte.filter(Boolean).pop(); return `<span><i class="dot" style="background:${farbe(i)}"></i>${esc(se.name)}${l ? ' · ' + Math.round(l.v * 100) + ' %' : ''}</span>`; }).join('')}</div>` : '') + (vl.serien.length ? linien(vl.sjs, vl.serien, { w: document.getElementById('an-verlauf').clientWidth, titel: 'Entwicklung', yLabel: 'Risikogruppe (%)', markAb: markIdx >= 0 ? markIdx : null, markText: esc(`${ui.markText || 'Maßnahme'} ab ${ui.mark}`) }) : '<p class="muted">Keine Daten.</p>');
