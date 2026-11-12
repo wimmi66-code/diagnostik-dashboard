@@ -136,6 +136,24 @@
       if (error) throw error;
     },
 
+    /** Viele Tests auf einmal löschen: nach Schuljahr oder nach Dateinamen-Präfix (z. B. TESTDATEN) */
+    async loescheMehrere({ schuljahr, dateiPrefix }) {
+      const passt = (t) => (schuljahr ? t.schuljahr === schuljahr : true) && (dateiPrefix ? String(t.datei || '').startsWith(dateiPrefix) : true);
+      if (!online) {
+        const vorher = mem.tests.length;
+        mem.tests = mem.tests.filter(t => !passt(t));
+        if (schuljahr && !dateiPrefix) mem.notizen = (mem.notizen || []).filter(n => n.schuljahr !== schuljahr);
+        lsSave(); return vorher - mem.tests.length;
+      }
+      let q = sb.from('test').delete({ count: 'exact' });
+      if (schuljahr) q = q.eq('schuljahr', schuljahr);
+      if (dateiPrefix) q = q.like('datei', dateiPrefix + '%');
+      const { error, count } = await q;
+      if (error) throw error;
+      if (schuljahr && !dateiPrefix) await sb.from('spiegel_notiz').delete().eq('schuljahr', schuljahr);
+      return count;
+    },
+
     /* ---------- Jahrgangsspiegel-Notizen ---------- */
     async notizen() {
       if (!online) return JSON.parse(JSON.stringify(mem.notizen || []));

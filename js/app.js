@@ -149,7 +149,8 @@
   function lineChart(xLabels, series, cw) {
     const w = Math.max(300, Math.round(cw || 640)), h = 260, l = 40, r = 16, t = 16, b = 46, lo = 20, hi = 80;
     const n = xLabels.length;
-    const X = (i) => n === 1 ? (l + w - r) / 2 : l + i * (w - l - r) / (n - 1);
+    const pad = n > 1 ? Math.min(70, (w - l - r) / (2 * n)) : 0;
+    const X = (i) => n === 1 ? (l + w - r) / 2 : l + pad + i * (w - l - r - 2 * pad) / (n - 1);
     const Y = (v) => t + (hi - Math.min(Math.max(v, lo), hi)) / (hi - lo) * (h - t - b);
     let s = `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Verlauf">`;
     s += `<rect class="normband" x="${l}" y="${Y(60)}" width="${w - l - r}" height="${Y(40) - Y(60)}" />`;
@@ -442,15 +443,17 @@
     state.jg.jahrgang = jg;
     const tests = basis.filter(t => jahrgang(t) === jg);
     const zuege = [...new Set(tests.map(zug))].sort();
-    const faecher = [...new Set(tests.map(t => t.fach))].sort();
+    const BER = { rs: 'Deutsch: Rechtschreibung', lesen: 'Deutsch: Lesen', mathe: 'Mathematik' };
+    const bereichName = (t) => { const b = window.Spiegel ? window.Spiegel.bereichVon(t) : null; return BER[b] || t.fach; };
+    const faecher = [...new Set(tests.map(bereichName))].sort((a, b) => Object.values(BER).indexOf(a) - Object.values(BER).indexOf(b));
     el.innerHTML = `
       <div class="filters">
         <div class="field"><label>Einschulungsjahrgang</label><select id="j-jg">${jgs.map(j => `<option value="${j}" ${j === jg ? 'selected' : ''}>Einschulung ${j}/${String((j + 1) % 100).padStart(2, '0')}</option>`).join('')}</select></div>
       </div>
       <div class="msg small">Ein Jahrgang umfasst alle Klassen, die im selben Schuljahr eingeschult wurden (z. B. 1d im Schuljahr 2024/25 und 3d im Schuljahr 2026/27). Die Kennungen sind je Test verschieden, der Verlauf vergleicht deshalb Klassenmediane der Hauptskala.</div>
-      ${faecher.map(f => `<div class="card" id="j-${esc(f)}"></div>`).join('')}`;
+      ${faecher.map((f, i) => `<div class="card" id="j-${i}"></div>`).join('')}`;
     faecher.forEach(f => {
-      const tf = tests.filter(t => t.fach === f).sort((a, b) => (a.testdatum || a.schuljahr).localeCompare(b.testdatum || b.schuljahr));
+      const tf = tests.filter(t => bereichName(t) === f).sort((a, b) => (a.testdatum || a.schuljahr).localeCompare(b.testdatum || b.schuljahr));
       // Zeitpunkte = Testversion + Schuljahr
       const punkte = []; tf.forEach(t => { const k = t.schuljahr + '|' + (t.testversion || t.verfahren); if (!punkte.includes(k)) punkte.push(k); });
       const series = zuege.map((z, i) => ({ name: 'Zug ' + z.toUpperCase(), color: farbe(i), values: punkte.map(p => {
@@ -459,8 +462,8 @@
         return { median: st.median, tip: `Klasse ${t.klasse} · ${t.testversion || t.verfahren}<br>${skalaName(t, hs)}: Median T ${fmt(st.median)}<br>Förderbedarf ${pct(st.anteilFoerder)}` };
       }) })).filter(s => s.values.some(Boolean));
       const labels = punkte.map(p => { const [sj, v] = p.split('|'); return v + '\n' + sj; });
-      const box = $(`#j-${CSS.escape(f)}`);
-      box.innerHTML = `<div class="card-head"><h2>${esc(f)}</h2><span class="muted small">Median T-Wert der Hauptskala je Testzeitpunkt</span></div>
+      const box = $(`#j-${faecher.indexOf(f)}`);
+      box.innerHTML = `<div class="card-head"><h2>${esc(f)}</h2><span class="muted small">Median T-Wert der Hauptskala je Testzeitpunkt${/Lesen/.test(f) ? ' · STOLLE/SLS in T-Werte umgerechnet' : ''}</span></div>
         ${series.length > 1 ? `<div class="legend" style="margin-bottom:6px">${series.map(s => `<span><i class="dot" style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>` : ''}
         <div class="j-chart"></div>${punkte.length < 2 ? '<p class="muted small" style="margin:6px 0 0">Bisher ein Testzeitpunkt. Die Verlaufslinie entsteht, sobald ein weiterer Test dieses Jahrgangs importiert ist.</p>' : ''}`;
       const jc = $('.j-chart', box); jc.innerHTML = lineChart(labels, series, Math.min(jc.clientWidth, 900));
@@ -581,7 +584,13 @@
   }
   function zeichneQueue() {
     const box = $('#imp-list'); if (!box) return;
-    box.innerHTML = importQueue.map((it, qi) => it.status === 'fehler'
+    const offen = importQueue.flatMap(it => it.status === 'bereit' ? it.tests.filter(t => !t.gespeichert) : []);
+    const sammel = offen.length >= 2 ? `<div class="card" id="imp-sammel"><div class="card-head"><h2>${offen.length} Tests bereit</h2>
+        <span class="muted small">Klasse, Stufe und Schuljahr werden aus den Dateien übernommen</span></div>
+        <div class="row"><button class="btn primary" id="imp-alle">Alle speichern</button>
+        <button class="btn danger" id="imp-alle-ers">Alle speichern und vorhandene ersetzen</button>
+        <span class="small" id="imp-fortschritt"></span></div></div>` : '';
+    box.innerHTML = sammel + importQueue.map((it, qi) => it.status === 'fehler'
       ? `<div class="card"><b>${esc(it.datei)}</b><div class="msg err" style="margin-top:8px">${esc(it.fehler)}</div></div>`
       : it.status === 'lesen' ? `<div class="card"><b>${esc(it.datei)}</b> <span class="muted">wird gelesen …</span></div>`
       : it.tests.map((t, ti) => {
@@ -605,6 +614,21 @@
             <span class="small ${t.err ? 'msg err' : ''}">${esc(t.err || '')}</span></div>
         </div>`;
       }).join('')).join('');
+    const alle = async (ersetzen) => {
+      $('#imp-alle').disabled = $('#imp-alle-ers').disabled = true;
+      let ok = 0, dup = 0, fehl = 0;
+      for (const [i, t] of offen.entries()) {
+        $('#imp-fortschritt').textContent = `Speichere ${i + 1} von ${offen.length} …`;
+        const m = t.meta;
+        if (!m.klasse || !m.stufe || !/^\d{4}\/\d{2}$/.test(m.schuljahr || '')) { t.err = 'Klasse, Stufe oder Schuljahr fehlt.'; fehl++; continue; }
+        try { await S.speichereTest(m, t.ergebnisse, ersetzen); t.gespeichert = true; t.err = ''; ok++; }
+        catch (e) { if (e.code === 'DUP') { t.dup = true; t.err = 'Bereits gespeichert.'; dup++; } else { t.err = e.message || String(e); fehl++; } }
+      }
+      await laden();
+      meldung(`${ok} Tests gespeichert${dup ? `, ${dup} bereits vorhanden (übersprungen)` : ''}${fehl ? `, ${fehl} mit Fehler` : ''}.`, fehl > 0);
+      zeichneQueue();
+    };
+    if ($('#imp-alle')) { $('#imp-alle').onclick = () => alle(false); $('#imp-alle-ers').onclick = () => { if (confirm('Vorhandene gleiche Tests werden überschrieben. Fortfahren?')) alle(true); }; }
     $$('.import-item', box).forEach(card => {
       const t = importQueue[+card.dataset.q].tests[+card.dataset.t];
       $$('input[data-f], select[data-f]', card).forEach(i => i.onchange = () => {
@@ -632,7 +656,15 @@
   /* ================= Verwaltung ================= */
   async function renderAdmin() {
     const el = $('#view-admin');
-    const testsHtml = `<div class="card"><div class="card-head"><h2>Gespeicherte Tests</h2></div><div id="a-tests"></div></div>`;
+    const sjListe = [...new Set(state.tests.map(t => t.schuljahr))].sort();
+    const anzTestdaten = state.tests.filter(t => String(t.datei || '').startsWith('TESTDATEN')).length;
+    const testsHtml = `<div class="card"><div class="card-head"><h2>Daten zurücksetzen</h2><span class="muted small">Löschen ist endgültig. Vorher ggf. Excel-Export sichern.</span></div>
+        <div class="filters">
+          <div class="field"><label for="a-sj">Schuljahr</label><select id="a-sj">${sjListe.map(s => `<option value="${esc(s)}">${esc(s)} (${state.tests.filter(t => t.schuljahr === s).length} Tests)</option>`).join('')}</select></div>
+          <button class="btn danger" id="a-sj-del" ${sjListe.length ? '' : 'disabled'}>Alle Tests dieses Schuljahres löschen</button>
+          <button class="btn danger" id="a-td-del" ${anzTestdaten ? '' : 'disabled'}>Alle Testdaten löschen (${anzTestdaten} Tests aus Dateien „TESTDATEN…“)</button>
+        </div></div>
+      <div class="card"><div class="card-head"><h2>Gespeicherte Tests</h2></div><div id="a-tests"></div></div>`;
     if (!S.online) {
       el.innerHTML = `<div class="card"><div class="card-head"><h2>Lokaler Modus</h2></div>
         <p class="small">Die Daten liegen nur in diesem Browser. Für den gemeinsamen Zugriff von Schulleitung und Lehrkräften tragen Sie die Supabase-Zugangsdaten in <code>js/config.js</code> ein (siehe README).</p>
@@ -676,6 +708,13 @@
         };
       } catch (e) { $('#a-prof').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
     }
+    const loeschen = async (opt, frage) => {
+      if (!confirm(frage)) return;
+      try { const n = await S.loescheMehrere(opt); await laden(); meldung(`${n ?? 'Alle'} Tests gelöscht.`); renderAdmin(); }
+      catch (e) { meldung('Löschen fehlgeschlagen: ' + e.message, true); }
+    };
+    $('#a-sj-del').onclick = () => { const sj = $('#a-sj').value; loeschen({ schuljahr: sj }, `Alle Tests, Ergebnisse und Notizen des Schuljahres ${sj} endgültig löschen?`); };
+    $('#a-td-del').onclick = () => loeschen({ dateiPrefix: 'TESTDATEN' }, `Alle ${anzTestdaten} Tests aus Testdaten-Dateien endgültig löschen?`);
     const tests = state.tests.slice().sort(sortTests);
     tabelle($('#a-tests'), [
       { key: 'klasse', label: 'Klasse' }, { key: 'schuljahr', label: 'Schuljahr' },

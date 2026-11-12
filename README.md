@@ -52,6 +52,15 @@ Für eine bereits eingerichtete Datenbank einmalig `supabase/update-jahrgangsspi
 
 Auf dem Handy oder Tablet lässt sich die App über „Zum Startbildschirm hinzufügen“ wie eine normale App installieren.
 
+## Testdaten und Zurücksetzen
+
+Viele Dateien auf einmal (z. B. ein ganzes Schuljahr) unter „Import“ ablegen und mit **„Alle speichern“** übernehmen. Unter **Verwaltung → Daten zurücksetzen** lassen sich alle Tests eines Schuljahres oder alle Tests aus Dateien, deren Name mit `TESTDATEN` beginnt, auf einmal löschen. Alternativ im Supabase-SQL-Editor:
+
+```sql
+delete from public.test where datei like 'TESTDATEN%';
+delete from public.spiegel_notiz where schuljahr in ('2006/07','2007/08','2008/09','2009/10');
+```
+
 ## Datenschutz
 
 - Gespeichert werden nur Klasse, Testangaben und die vom Verlag vergebenen pseudonymen Kennungen mit ihren Werten. Die Zuordnung Kennung → Kind bleibt im Klett-Portal bzw. bei der Lehrkraft.

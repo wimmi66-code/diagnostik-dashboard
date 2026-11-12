@@ -62,8 +62,7 @@
 
   /** Spiegel für ein Schuljahr und Halbjahr berechnen */
   function berechne(C, tests, notizen, sj, hj, lesetest) {
-    const imZeitraum = tests.filter(t => t.schuljahr === sj && halbjahrVon(t) === hj && bereichVon(t) &&
-      !(lesetest && bereichVon(t) === 'lesen' && t.verfahren !== lesetest));
+    const imZeitraum = tests.filter(t => t.schuljahr === sj && halbjahrVon(t) === hj && bereichVon(t));
     const stufen = [...new Set(imZeitraum.map(t => t.stufe))].sort((a, b) => a - b);
     const notiz = (stufe, klasse) => notizen.find(n => n.schuljahr === sj && +n.halbjahr === hj && +n.stufe === stufe && (n.klasse || '') === (klasse || '')) || {};
     return stufen.map(stufe => {
@@ -73,7 +72,9 @@
       const klassen = klassenNamen.map(kl => {
         const werte = {};
         BEREICHE.forEach(B => {
-          const kand = ts.filter(t => t.klasse === kl && bereichVon(t) === B.k)
+          let kand = ts.filter(t => t.klasse === kl && bereichVon(t) === B.k);
+          if (B.k === 'lesen' && lesetest && kand.some(t => t.verfahren === lesetest)) kand = kand.filter(t => t.verfahren === lesetest);
+          kand = kand
             .sort((a, b) => String(b.testdatum || '').localeCompare(String(a.testdatum || '')));
           werte[B.k] = kand.length ? kennzahl(C, kand[0], B.k) : null;
           if (kand.length) (versionen[B.k] = versionen[B.k] || new Set()).add(kand[0].testversion || kand[0].verfahren);
@@ -87,7 +88,7 @@
         gesamt[B.k] = v.length ? { n: v.reduce((s, x) => s + x.n, 0), risiko: mean(v.map(x => x.risiko)), schnitt: mean(v.map(x => x.schnitt)) } : null;
       });
       const schueler = klassen.reduce((s, k) => s + (maxOf(BEREICHE.map(B => k.werte[B.k] && k.werte[B.k].n)) || 0), 0);
-      const leseVerf = [...new Set(ts.filter(t => bereichVon(t) === 'lesen').map(t => t.verfahren))];
+      const leseVerf = [...new Set(klassen.map(k => k.werte.lesen && k.werte.lesen.test.verfahren).filter(Boolean))];
       return { stufe, klassen, gesamt, schueler, versionen, schnittLesen: schnittLabelLesen(leseVerf.length === 1 ? leseVerf[0] : null), ampel: ampel(maxOf(BEREICHE.map(B => gesamt[B.k] && gesamt[B.k].risiko))), notiz: notiz(stufe, '') };
     });
   }
